@@ -1,13 +1,11 @@
-# app/main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from loguru import logger
 import sys
 
 from app.config import settings
-from app.api.routes import health, data, analysis
+from app.api.routes import health_router, data_router, analysis_router
 from app.services.data_service import data_service
 
 # Настройка логирования
@@ -17,8 +15,6 @@ logger.add("logs/api.log", rotation="1 day", level="INFO")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Управление жизненным циклом приложения"""
-    # Startup
     logger.info(f"Starting {settings.PROJECT_NAME}...")
     logger.info(f"Data directory: {settings.DATA_DIR}")
     
@@ -29,11 +25,8 @@ async def lifespan(app: FastAPI):
         logger.warning("No data files found! Please add CSV files to data/yearly/ directory")
     
     yield
-    
-    # Shutdown
     logger.info("Shutting down...")
 
-# Создание приложения
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description="API для анализа демографических данных России с интеграцией LLaMA",
@@ -41,7 +34,6 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -50,10 +42,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Регистрация роутеров
-app.include_router(health.router, prefix=settings.API_V1_PREFIX)
-app.include_router(data.router, prefix=settings.API_V1_PREFIX)
-app.include_router(analysis.router, prefix=settings.API_V1_PREFIX)
+# Регистрация роутеров (health_router уже сам роутер, не нужно .router)
+app.include_router(health_router, prefix=settings.API_V1_PREFIX)
+app.include_router(data_router, prefix=settings.API_V1_PREFIX)
+app.include_router(analysis_router, prefix=settings.API_V1_PREFIX)
 
 @app.get("/")
 async def root():
