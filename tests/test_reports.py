@@ -2,11 +2,13 @@ import importlib.util
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
 from app.main import app
 from app.models import ReportFormat, ReportGenerationRequest, ReportScope
+from app.services.report_export_service import ReportExportService
 from app.services.data_service import data_service
 from app.services.report_service import report_service
 from app.services.trends_service import trends_service
@@ -104,6 +106,45 @@ class ReportPayloadStructureTests(unittest.IsolatedAsyncioTestCase):
             if section.heading == "Рекомендации по социальной политике и территориальному планированию"
         )
         self.assertGreaterEqual(len(recommendation_section.paragraphs), 4)
+
+
+class ReportExportServiceTests(unittest.TestCase):
+    def test_resolve_font_prefers_supported_cyrillic_font(self):
+        service = ReportExportService()
+        candidates = [
+            ("UnsafeUnicode", Path("/tmp/unsafe-unicode.ttf")),
+            ("SafeSans", Path("/tmp/safe-sans.ttf")),
+        ]
+
+        with (
+            patch.object(service, "_font_candidates", return_value=candidates),
+            patch.object(
+                service,
+                "_font_supports_text",
+                side_effect=lambda font_name, _: font_name == "SafeSans",
+            ),
+            patch.object(Path, "exists", return_value=True),
+        ):
+            font_name, font_path = service._resolve_font()
+
+        self.assertEqual(font_name, "SafeSans")
+        self.assertEqual(font_path, Path("/tmp/safe-sans.ttf"))
+
+    def test_resolve_font_raises_without_cyrillic_capable_ttf(self):
+        service = ReportExportService()
+
+        with (
+            patch.object(
+                service,
+                "_font_candidates",
+                return_value=[("MissingFont", Path("/tmp/missing-font.ttf"))],
+            ),
+            patch.object(Path, "exists", return_value=False),
+        ):
+            with self.assertRaises(RuntimeError) as exc:
+                service._resolve_font()
+
+        self.assertIn("Cyrillic support", str(exc.exception))
 
 
 @unittest.skipUnless(HAS_EXPORT_DEPS, "python-docx and reportlab are required for export tests")

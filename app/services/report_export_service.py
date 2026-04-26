@@ -127,8 +127,7 @@ class ReportExportService:
             ) from exc
 
         font_name, font_path = self._resolve_font()
-        if font_path:
-            pdfmetrics.registerFont(TTFont(font_name, str(font_path)))
+        pdfmetrics.registerFont(TTFont(font_name, str(font_path), validate=1))
 
         styles = getSampleStyleSheet()
         title_style = ParagraphStyle(
@@ -235,18 +234,37 @@ class ReportExportService:
         return table
 
     def _resolve_font(self):
-        candidates = [
-            ("ArialUnicode", Path("/System/Library/Fonts/Supplemental/Arial Unicode.ttf")),
-            ("Arial", Path("/System/Library/Fonts/Supplemental/Arial.ttf")),
-            ("TimesNewRoman", Path("/System/Library/Fonts/Supplemental/Times New Roman.ttf")),
+        for font_name, font_path in self._font_candidates():
+            if font_path.exists() and self._font_supports_text(font_name, font_path):
+                return font_name, font_path
+        raise RuntimeError(
+            "PDF export requires a TrueType font with Cyrillic support. "
+            "Install DejaVu Sans or another compatible font and rebuild the environment."
+        )
+
+    def _font_candidates(self):
+        return [
             ("DejaVuSans", Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")),
             ("DejaVuSans", Path("/usr/share/fonts/dejavu/DejaVuSans.ttf")),
             ("LiberationSans", Path("/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf")),
+            ("Arial", Path("/System/Library/Fonts/Supplemental/Arial.ttf")),
+            ("TimesNewRoman", Path("/System/Library/Fonts/Supplemental/Times New Roman.ttf")),
+            ("ArialUnicodeMS", Path("/System/Library/Fonts/Supplemental/Arial Unicode.ttf")),
         ]
-        for font_name, font_path in candidates:
-            if font_path.exists():
-                return font_name, font_path
-        return "Helvetica", None
+
+    def _font_supports_text(self, font_name: str, font_path: Path) -> bool:
+        try:
+            from reportlab.pdfbase.ttfonts import TTFont
+        except ImportError:
+            return False
+
+        sample_text = "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдеёжзийклмнопрстуфхцчшщъыьэюя"
+        try:
+            font = TTFont(font_name, str(font_path), validate=1)
+        except Exception:
+            return False
+
+        return all(ord(char) in font.face.charToGlyph for char in sample_text)
 
 
 report_export_service = ReportExportService()
