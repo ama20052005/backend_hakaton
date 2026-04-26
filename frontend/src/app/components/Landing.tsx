@@ -1,24 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 
 import LanguageToggle from "./LanguageToggle";
-import { fetchHealth, fetchSummary, fetchTrends, type HealthResponse, type YearlyStatistic } from "../lib/api";
+import { fetchHealth, fetchSummary, type HealthResponse, type YearlyStatistic } from "../lib/api";
 import {
   formatCompactPopulation,
   formatInteger,
   formatPercent,
 } from "../lib/format";
 import { useLanguage } from "../lib/language";
-import { buildSeriesFromTrend, type SeriesPoint } from "../lib/insights";
 
 const landingCopy = {
   ru: {
@@ -37,9 +27,6 @@ const landingCopy = {
     population: "Население",
     urbanShare: "Доля городского населения",
     territories: "Территорий в наборе",
-    timeline: "Срез по годам",
-    chartTitle: "Последние доступные годы",
-    chartText: "Короткий обзор динамики до перехода в аналитический экран.",
     sections: [
       {
         title: "Численность и структура",
@@ -79,9 +66,6 @@ const landingCopy = {
     population: "Population",
     urbanShare: "Urban share",
     territories: "Territories in dataset",
-    timeline: "Yearly snapshot",
-    chartTitle: "Most recent available years",
-    chartText: "A short trend view before moving into the detailed analytics screen.",
     sections: [
       {
         title: "Population and structure",
@@ -113,7 +97,6 @@ export default function Landing() {
 
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [summary, setSummary] = useState<YearlyStatistic | null>(null);
-  const [trendSeries, setTrendSeries] = useState<SeriesPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -137,11 +120,7 @@ export default function Landing() {
           );
         }
 
-        const trendStart = years[Math.max(0, years.length - 5)];
-        const [summaryPayload, trendPayload] = await Promise.all([
-          fetchSummary(latestYear),
-          fetchTrends(trendStart, latestYear),
-        ]);
+        const summaryPayload = await fetchSummary(latestYear);
 
         if (!active) {
           return;
@@ -149,7 +128,6 @@ export default function Landing() {
 
         setHealth(healthPayload);
         setSummary(summaryPayload);
-        setTrendSeries(buildSeriesFromTrend(trendPayload));
       } catch (loadError) {
         if (!active) {
           return;
@@ -172,10 +150,6 @@ export default function Landing() {
 
   const years = health?.data.years_available ?? [];
   const latestYear = summary?.year ?? years.at(-1);
-  const chartData = trendSeries.map((point) => ({
-    year: String(point.year),
-    population: point.totalPopulation,
-  }));
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -211,8 +185,8 @@ export default function Landing() {
           </div>
         </header>
 
-        <section className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_420px]">
-          <div className="border border-foreground/10 bg-white p-6 sm:p-8">
+        <section className="mt-6">
+          <div className="border border-foreground/10 bg-white p-6 sm:p-8 lg:p-10">
             <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-foreground/45">
               {loading ? copy.dataChecking : copy.dataReady}
             </div>
@@ -265,50 +239,6 @@ export default function Landing() {
               ))}
             </div>
           </div>
-
-          <aside className="border border-foreground/10 bg-white p-6">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-foreground/45">
-              {copy.timeline}
-            </div>
-            <h2
-              className="mt-2 text-2xl tracking-[-0.05em]"
-              style={{ fontFamily: "var(--font-headline)", fontWeight: 700 }}
-            >
-              {copy.chartTitle}
-            </h2>
-            <p className="mt-3 text-sm leading-6 text-foreground/55">{copy.chartText}</p>
-
-            <div className="mt-6 h-[280px]">
-              {chartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData}>
-                    <CartesianGrid stroke="rgba(15, 23, 42, 0.08)" vertical={false} />
-                    <XAxis
-                      dataKey="year"
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 12 }}
-                    />
-                    <YAxis
-                      axisLine={false}
-                      tickLine={false}
-                      tickFormatter={(value) => formatCompactPopulation(Number(value), language)}
-                      tick={{ fontSize: 12 }}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        border: "1px solid rgba(15,23,42,0.1)",
-                        borderRadius: "0",
-                        background: "#ffffff",
-                      }}
-                      formatter={(value: number) => [formatInteger(value, language), copy.population]}
-                    />
-                    <Bar dataKey="population" fill="#0f766e" maxBarSize={56} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : null}
-            </div>
-          </aside>
         </section>
 
         <section id="overview" className="mt-6 grid gap-px border border-foreground/10 bg-foreground/10 lg:grid-cols-3">
