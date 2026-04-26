@@ -2,13 +2,25 @@
 import httpx
 import asyncio
 import hashlib
-import json
 from typing import Optional, Dict, Any
 from datetime import datetime
-from loguru import logger
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.config import settings
+from app.core.logging import logger
+
+try:
+    from tenacity import retry, stop_after_attempt, wait_exponential
+except ImportError:
+    def retry(*args, **kwargs):
+        def decorator(func):
+            return func
+        return decorator
+
+    def stop_after_attempt(*args, **kwargs):
+        return None
+
+    def wait_exponential(*args, **kwargs):
+        return None
 
 class LlamaService:
     """Сервис для работы с LLaMA через Ollama API"""

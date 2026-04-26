@@ -1,7 +1,6 @@
 # app/services/analysis_service.py
 from typing import Dict, List, Optional, Any
 import pandas as pd
-from loguru import logger
 
 from app.services.data_service import data_service
 from app.services.llama_service import llama_service

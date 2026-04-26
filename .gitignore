@@ -15,6 +15,7 @@ env/
 # Project specific
 data/cache/
 logs/
+generated_reports/
 *.log
 .DS_Store
 
