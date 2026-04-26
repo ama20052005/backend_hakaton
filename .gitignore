@@ -5,12 +5,22 @@ __pycache__/
 venv/
 env/
 .venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+*.tsbuildinfo
 
 # Project specific
 data/cache/

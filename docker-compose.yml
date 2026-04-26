@@ -1,10 +1,12 @@
 services:
   api:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      OLLAMA_HOST: http://ollama:11434
     ports:
       - "8000:8000"
-    environment:
-      - OLLAMA_HOST=http://ollama:11434
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
@@ -14,6 +16,32 @@ services:
         condition: service_healthy
       ollama-init:
         condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=5)"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+    networks:
+      - demography-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
     networks:
       - demography-net
 
@@ -29,6 +57,7 @@ services:
       timeout: 5s
       retries: 12
       start_period: 10s
+    restart: unless-stopped
     networks:
       - demography-net
 
@@ -37,7 +66,7 @@ services:
     entrypoint: ["ollama"]
     command: ["pull", "llama3.2:3b"]
     environment:
-      - OLLAMA_HOST=http://ollama:11434
+      OLLAMA_HOST: http://ollama:11434
     depends_on:
       ollama:
         condition: service_healthy
