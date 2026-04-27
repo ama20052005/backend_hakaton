@@ -1,9 +1,6 @@
-# app/api/routes/data.py
 from fastapi import APIRouter, HTTPException, Query
-from typing import List, Optional
 
 from app.services.data_service import data_service
-from app.models import MunicipalityData, YearlyStatistic
 
 router = APIRouter(prefix="/data", tags=["data"])
 
@@ -52,13 +49,13 @@ async def get_top_cities(
     year: int,
     limit: int = Query(10, ge=1, le=50)
 ):
-    """Получить топ N городов по населению"""
+    """Получить топ N регионов по населению без строки по России"""
     cities = data_service.get_top_cities(year, limit)
     return {"year": year, "cities": cities, "count": len(cities)}
 
 @router.get("/regions/{year}")
 async def get_regions(year: int):
-    """Получить список регионов за год"""
+    """Получить список регионов за год без агрегированной строки по России"""
     regions = data_service.get_regions(year)
     return {"year": year, "regions": regions, "count": len(regions)}
 

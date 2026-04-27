@@ -127,7 +127,7 @@ class ReportExportService:
             ) from exc
 
         font_name, font_path = self._resolve_font()
-        pdfmetrics.registerFont(TTFont(font_name, str(font_path), validate=1))
+        pdfmetrics.registerFont(TTFont(font_name, str(font_path)))
 
         styles = getSampleStyleSheet()
         title_style = ParagraphStyle(
@@ -244,12 +244,12 @@ class ReportExportService:
 
     def _font_candidates(self):
         return [
+            ("ArialUnicode", Path("/System/Library/Fonts/Supplemental/Arial Unicode.ttf")),
             ("DejaVuSans", Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")),
             ("DejaVuSans", Path("/usr/share/fonts/dejavu/DejaVuSans.ttf")),
             ("LiberationSans", Path("/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf")),
             ("Arial", Path("/System/Library/Fonts/Supplemental/Arial.ttf")),
             ("TimesNewRoman", Path("/System/Library/Fonts/Supplemental/Times New Roman.ttf")),
-            ("ArialUnicodeMS", Path("/System/Library/Fonts/Supplemental/Arial Unicode.ttf")),
         ]
 
     def _font_supports_text(self, font_name: str, font_path: Path) -> bool:

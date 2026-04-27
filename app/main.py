@@ -1,11 +1,11 @@
-# app/main.py
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import sys
 
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.api.routes import analysis, data, demographic, forecast, health, reports, trends
 from app.config import settings
-from app.api.routes import analysis, data, health, reports, trends
 from app.core.logging import logger
 from app.services.data_service import data_service
 
@@ -35,7 +35,7 @@ async def lifespan(app: FastAPI):
 # Создание приложения
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    description="API для анализа демографических данных России с интеграцией LLaMA",
+    description="API для анализа, отчетности и прогнозирования демографических данных России",
     version="1.0.0",
     lifespan=lifespan
 )
@@ -55,6 +55,8 @@ app.include_router(data.router, prefix=settings.API_V1_PREFIX)
 app.include_router(analysis.router, prefix=settings.API_V1_PREFIX)
 app.include_router(trends.router, prefix=settings.API_V1_PREFIX)
 app.include_router(reports.router, prefix=settings.API_V1_PREFIX)
+app.include_router(demographic.router, prefix=settings.API_V1_PREFIX)
+app.include_router(forecast.router, prefix=settings.API_V1_PREFIX)
 
 @app.get("/")
 async def root():

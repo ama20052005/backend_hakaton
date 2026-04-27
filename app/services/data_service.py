@@ -1,4 +1,3 @@
-# app/services/data_service.py
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -12,6 +11,19 @@ class DataService:
 
     def __init__(self):
         self.loader = csv_loader
+
+    def _is_russia_name(self, name: str) -> bool:
+        normalized = str(name).strip().lower()
+        return "российская феде" in normalized
+
+    def _filter_russia(self, df: pd.DataFrame) -> pd.DataFrame:
+        return df[~df["name"].apply(self._is_russia_name)]
+
+    def _find_russia_row(self, df: pd.DataFrame) -> Optional[pd.Series]:
+        matches = df[df["name"].apply(self._is_russia_name)]
+        if matches.empty:
+            return None
+        return matches.iloc[0]
 
     def get_data_for_year(self, year: int) -> Optional[pd.DataFrame]:
         """Получает DataFrame за указанный год."""
@@ -71,8 +83,9 @@ class DataService:
         if df is None:
             return []
 
-        mask = df["name"].str.contains(query, case=False, na=False)
-        results = df[mask].head(limit)
+        filtered_df = self._filter_russia(df)
+        mask = filtered_df["name"].str.contains(query, case=False, na=False)
+        results = filtered_df[mask].head(limit)
         return [self._row_to_model(row, year) for _, row in results.iterrows()]
 
     def get_top_cities(self, year: int = 2024, n: int = 10) -> List[MunicipalityData]:
@@ -82,7 +95,7 @@ class DataService:
         if df is None:
             return []
 
-        top_df = df.nlargest(n, "total_population")
+        top_df = self._filter_russia(df).nlargest(n, "total_population")
         return [self._row_to_model(row, year) for _, row in top_df.iterrows()]
 
     def get_regions(self, year: int = 2024) -> List[MunicipalityData]:
@@ -96,7 +109,8 @@ class DataService:
         if df is None:
             return []
 
-        return [self._row_to_model(row, year) for _, row in df.iterrows()]
+        filtered_df = self._filter_russia(df)
+        return [self._row_to_model(row, year) for _, row in filtered_df.iterrows()]
 
     def get_population_series(self, name: str, years: List[int]) -> List[MunicipalityData]:
         """Возвращает временной ряд по региону за указанные годы."""
@@ -118,6 +132,22 @@ class DataService:
 
     def get_year_statistics(self, year: int) -> Optional[YearlyStatistic]:
         """Получает общую статистику за год."""
+
+        df = self.loader.load_year(year)
+        if df is None:
+            return None
+
+        russia_row = self._find_russia_row(df)
+        if russia_row is not None:
+            filtered_df = self._filter_russia(df)
+            return YearlyStatistic(
+                year=year,
+                total_population=int(russia_row["total_population"]),
+                urban_population=int(russia_row["urban_population"]),
+                rural_population=int(russia_row["rural_population"]),
+                urban_ratio=float(russia_row["urban_ratio"]),
+                number_of_municipalities=len(filtered_df),
+            )
 
         summary = self.loader.get_year_summary(year)
         if summary is None:
@@ -143,7 +173,42 @@ class DataService:
         if years is None:
             years = self.get_available_years()
 
-        return self.loader.get_trends(years)
+        trends = {
+            "years": [],
+            "total_population": [],
+            "urban_population": [],
+            "rural_population": [],
+        }
+        urban_ratios: List[float] = []
+
+        for year in sorted(years):
+            stats = self.get_year_statistics(year)
+            if not stats:
+                continue
+
+            trends["years"].append(year)
+            trends["total_population"].append(stats.total_population)
+            trends["urban_population"].append(stats.urban_population)
+            trends["rural_population"].append(stats.rural_population)
+            urban_ratios.append(stats.urban_ratio)
+
+        if len(trends["total_population"]) >= 2:
+            first_population = trends["total_population"][0]
+            last_population = trends["total_population"][-1]
+            trends["growth_rate"] = (
+                ((last_population - first_population) / first_population) * 100
+                if first_population > 0
+                else 0
+            )
+        else:
+            trends["growth_rate"] = 0
+
+        trends["average_urban_ratio"] = (
+            sum(urban_ratios) / len(urban_ratios)
+            if urban_ratios
+            else 0
+        )
+        return trends
 
 
 data_service = DataService()

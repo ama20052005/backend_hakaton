@@ -7,6 +7,9 @@ from app.services.data_service import data_service
 class TrendsService:
     """Сервис расчета трендов по населению."""
 
+    def _filter_russia(self, df):
+        return df[~df["name"].astype(str).str.lower().str.contains("российская феде", na=False)]
+
     def get_growth_decline(
         self,
         start_year: int,
@@ -24,10 +27,13 @@ class TrendsService:
                 decline=[],
             )
 
-        merged = start_df[["name", "total_population"]].rename(
+        filtered_start = self._filter_russia(start_df)
+        filtered_end = self._filter_russia(end_df)
+
+        merged = filtered_start[["name", "total_population"]].rename(
             columns={"total_population": "start_population"}
         ).merge(
-            end_df[["name", "total_population"]].rename(
+            filtered_end[["name", "total_population"]].rename(
                 columns={"total_population": "end_population"}
             ),
             on="name",

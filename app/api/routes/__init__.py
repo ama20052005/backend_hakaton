@@ -7,4 +7,6 @@ __all__ = [
     "reports",
     "municipalities",
     "trends",
+    "demographic",
+    "forecast",
 ]

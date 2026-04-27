@@ -56,6 +56,13 @@ class CSVLoader:
         normalized = name.strip().lower().encode("utf-8")
         return f"entity-{hashlib.md5(normalized).hexdigest()[:12]}"
 
+    def _is_russia_name(self, name: str) -> bool:
+        normalized = str(name).strip().lower()
+        return "российская феде" in normalized
+
+    def _filter_russia(self, df: pd.DataFrame) -> pd.DataFrame:
+        return df[~df["name"].apply(self._is_russia_name)]
+
     def _clean_dataframe(self, df: pd.DataFrame, year: int) -> pd.DataFrame:
         """Очищает и нормализует DataFrame под единый контракт API."""
 
@@ -163,20 +170,36 @@ class CSVLoader:
         if df is None:
             return None
 
+        russia_rows = df[df["name"].apply(self._is_russia_name)]
+        filtered_df = self._filter_russia(df)
+
+        if not russia_rows.empty:
+            russia_row = russia_rows.iloc[0]
+            return {
+                "year": year,
+                "total_population": int(russia_row["total_population"]),
+                "urban_population": int(russia_row["urban_population"]),
+                "rural_population": int(russia_row["rural_population"]),
+                "number_of_municipalities": len(filtered_df),
+                "average_urban_ratio": float(russia_row["urban_ratio"]),
+                "top_cities": self._get_top_cities(filtered_df, 10),
+            }
+
         return {
             "year": year,
             "total_population": int(df["total_population"].sum()),
             "urban_population": int(df["urban_population"].sum()),
             "rural_population": int(df["rural_population"].sum()),
-            "number_of_municipalities": len(df),
+            "number_of_municipalities": len(filtered_df),
             "average_urban_ratio": float(df["urban_ratio"].mean()),
-            "top_cities": self._get_top_cities(df, 10),
+            "top_cities": self._get_top_cities(filtered_df, 10),
         }
 
     def _get_top_cities(self, df: pd.DataFrame, n: int = 10) -> List[Dict]:
         """Возвращает крупнейшие записи датасета по населению."""
 
-        return df.nlargest(n, "total_population")[
+        filtered_df = self._filter_russia(df)
+        return filtered_df.nlargest(n, "total_population")[
             ["name", "total_population", "urban_population", "rural_population"]
         ].to_dict("records")
 
