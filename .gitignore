@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Project specific
+data/cache/
+logs/
+generated_reports/
+*.log
+.DS_Store
+
+# Environment
+.env
+.env.local
+
+# Database
+*.db
+*.sqlite
